@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, MapPin, Calendar, Ticket, Sparkles, } from 'lucide-react';
+import { X, MapPin, Calendar, Ticket, Sparkles } from 'lucide-react';
 import type { VenueEvent } from '../../types';
 
 interface EventDetailModalProps {

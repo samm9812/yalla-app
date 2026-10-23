@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Navigation, Star, Gift, Sparkles, Compass } from 'lucide-react';
+import { MapPin, Navigation, Star, Gift,  Compass } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 
 export const MapView: React.FC = () => {
