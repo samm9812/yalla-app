@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Gift, Sparkles, Award, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Gift,  Award, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../services/supabaseClient';
 
 interface RewardItem {

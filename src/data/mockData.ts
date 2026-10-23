@@ -1,4 +1,4 @@
-import { Venue, EventItem, Reward } from '../types';
+import type { Venue, EventItem, Reward } from '../types';
 
 export const MOCK_VENUES: Venue[] = [
   {
