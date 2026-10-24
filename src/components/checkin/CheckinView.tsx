@@ -35,9 +35,9 @@ export const CheckinView: React.FC = () => {
           // Disparar validación automáticamente
           processCheckin(decodedText);
         },
-        (error) => {
-          // Ignorar errores de escaneo continuo por cuadro
-        }
+         (_error) => {
+        // Ignorar errores de escaneo continuo por cuadro
+         }
       );
     }
 
