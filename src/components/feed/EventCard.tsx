@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, MapPin, Ticket, Sparkles } from 'lucide-react';
+import { Calendar, MapPin, Ticket, Sparkles, Navigation } from 'lucide-react';
 import type { VenueEvent } from '../../types';
 
 interface EventCardProps {
@@ -8,6 +8,11 @@ interface EventCardProps {
 }
 
 export const EventCard: React.FC<EventCardProps> = ({ event, onSelectEvent }) => {
+  // Construir URLs de navegación
+  const venueQuery = encodeURIComponent(`${event.venueName}`);
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${venueQuery}`;
+  const wazeUrl = `https://waze.com/ul?q=${venueQuery}&navigate=yes`;
+
   return (
     <div
       onClick={() => onSelectEvent && onSelectEvent(event)}
@@ -73,9 +78,60 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onSelectEvent }) =>
           {event.title}
         </h3>
 
-        <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <MapPin style={{ width: '13px', height: '13px', color: '#f59e0b' }} /> {event.venueName}
         </p>
+
+        {/* Botones para Abrir Navegación en Google Maps y Waze */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+          <a
+            href={googleMapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              flex: 1,
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              color: '#38bdf8',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              fontWeight: '600',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px'
+            }}
+          >
+            <Navigation style={{ width: '12px', height: '12px' }} /> Google Maps
+          </a>
+
+          <a
+            href={wazeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              flex: 1,
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              color: '#38bdf8',
+              padding: '6px 10px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              fontWeight: '600',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px'
+            }}
+          >
+            <Navigation style={{ width: '12px', height: '12px' }} /> Waze
+          </a>
+        </div>
 
         {/* Info de Entrada / Beneficio Yalla */}
         <div style={{

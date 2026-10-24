@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { QrCode, Sparkles, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { QrCode, Sparkles, CheckCircle2, AlertCircle, ShieldCheck, Camera, X } from 'lucide-react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { supabase } from '../../services/supabaseClient';
 
 export const CheckinView: React.FC = () => {
@@ -7,10 +8,45 @@ export const CheckinView: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
     fetchUserProfile();
   }, []);
+
+  useEffect(() => {
+    let scanner: Html5QrcodeScanner | null = null;
+
+    if (isScanning) {
+      scanner = new Html5QrcodeScanner(
+        "reader",
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        /* verbose= */ false
+      );
+
+      scanner.render(
+        (decodedText) => {
+          // Cuando la cámara detecta un QR
+          setTokenInput(decodedText);
+          setIsScanning(false);
+          if (scanner) {
+            scanner.clear().catch(err => console.error(err));
+          }
+          // Disparar validación automáticamente
+          processCheckin(decodedText);
+        },
+        (error) => {
+          // Ignorar errores de escaneo continuo por cuadro
+        }
+      );
+    }
+
+    return () => {
+      if (scanner) {
+        scanner.clear().catch(err => console.error(err));
+      }
+    };
+  }, [isScanning]);
 
   const fetchUserProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -24,9 +60,8 @@ export const CheckinView: React.FC = () => {
     }
   };
 
-  const handleValidateAndCheckin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tokenInput.trim()) return;
+  const processCheckin = async (codeToValidate: string) => {
+    if (!codeToValidate.trim()) return;
 
     setLoading(true);
     setMessage(null);
@@ -43,30 +78,30 @@ export const CheckinView: React.FC = () => {
       const { data: tokenData, error: tokenError } = await supabase
         .from('qr_tokens')
         .select('*')
-        .eq('token', tokenInput.trim())
+        .eq('token', codeToValidate.trim())
         .single();
 
       if (tokenError || !tokenData) {
-        setMessage({ type: 'error', text: '❌ Código QR inválido o desconocido.' });
+        setMessage({ type: 'error', text: '❌ Código QR de pago inválido o no encontrado.' });
         setLoading(false);
         return;
       }
 
       // 2. Validar si ya fue usado (Anti-fraude)
       if (tokenData.is_used) {
-        setMessage({ type: 'error', text: '⚠️ Este código ya fue utilizado. ¡No se permiten usos múltiples!' });
+        setMessage({ type: 'error', text: '⚠️ Este código de factura ya fue reclamado previamente.' });
         setLoading(false);
         return;
       }
 
       // 3. Validar si expiró
       if (new Date() > new Date(tokenData.expires_at)) {
-        setMessage({ type: 'error', text: '⏰ Este código QR ha expirado. Pide uno nuevo en caja.' });
+        setMessage({ type: 'error', text: '⏰ Este código QR ha expirado. Solicita un nuevo comprobante en caja.' });
         setLoading(false);
         return;
       }
 
-      // 4. Quemar el token (marcarlo como usado)
+      // 4. Marcar token como usado
       const { error: updateError } = await supabase
         .from('qr_tokens')
         .update({ is_used: true })
@@ -74,7 +109,7 @@ export const CheckinView: React.FC = () => {
 
       if (updateError) throw updateError;
 
-      // 5. Registrar el check-in en la tabla
+      // 5. Registrar el check-in
       const { error: checkinError } = await supabase
         .from('checkins')
         .insert([
@@ -87,7 +122,7 @@ export const CheckinView: React.FC = () => {
 
       if (checkinError) throw checkinError;
 
-      // 6. Actualizar los puntos del usuario en su perfil
+      // 6. Actualizar los puntos del usuario
       const currentPoints = userProfile?.points || 100;
       const newPoints = currentPoints + 50;
 
@@ -98,16 +133,21 @@ export const CheckinView: React.FC = () => {
 
       if (profileError) throw profileError;
 
-      setMessage({ type: 'success', text: '🎉 ¡Check-in exitoso! Has sumado +50 puntos a tu cuenta.' });
+      setMessage({ type: 'success', text: '🎉 ¡Pago verificado! Has sumado +50 Yallacoins a tu cuenta.' });
       setTokenInput('');
-      fetchUserProfile(); // Actualizar saldo en pantalla
+      fetchUserProfile();
 
     } catch (err: any) {
       console.error(err);
-      setMessage({ type: 'error', text: 'Ocurrió un error al procesar el check-in.' });
+      setMessage({ type: 'error', text: 'Ocurrió un error al procesar el check-in de tu consumo.' });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleValidateAndCheckin = (e: React.FormEvent) => {
+    e.preventDefault();
+    processCheckin(tokenInput);
   };
 
   return (
@@ -133,10 +173,10 @@ export const CheckinView: React.FC = () => {
           <QrCode style={{ width: '28px', height: '28px', color: '#fbbf24' }} />
         </div>
         <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#f8fafc', margin: '0 0 6px 0' }}>
-          Check-in en Establecimiento
+          Validar Consumo y Recompensa
         </h2>
         <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, maxWidth: '280px', marginLeft: 'auto', marginRight: 'auto' }}>
-          Escanea o ingresa el código QR entregado en caja al realizar tu consumo para reclamar tus puntos.
+          Escanea el código QR impreso en tu factura de consumo o ingresa el código alfanumérico entregado en caja.
         </p>
       </div>
 
@@ -168,12 +208,59 @@ export const CheckinView: React.FC = () => {
             fontWeight: 'bold',
             border: '1px solid rgba(245, 158, 11, 0.3)'
           }}>
-            Nivel {userProfile.level}
+            Nivel {userProfile.level || 1}
           </span>
         </div>
       )}
 
-      {/* Formulario de Validación */}
+      {/* Sección del Escáner con Cámara */}
+      <div style={{
+        backgroundColor: '#0f172a',
+        border: '1px solid #1e293b',
+        borderRadius: '20px',
+        padding: '20px',
+        marginBottom: '20px',
+        textAlign: 'center'
+      }}>
+        {!isScanning ? (
+          <button
+            onClick={() => setIsScanning(true)}
+            style={{
+              width: '100%',
+              backgroundColor: '#f59e0b',
+              color: '#020617',
+              padding: '14px',
+              borderRadius: '12px',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            <Camera style={{ width: '20px', height: '20px' }} />
+            Escanear QR de Factura con Cámara
+          </button>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: '600' }}>Aponta al código QR de la factura</span>
+              <button
+                onClick={() => setIsScanning(false)}
+                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+              >
+                <X style={{ width: '20px', height: '20px' }} />
+              </button>
+            </div>
+            <div id="reader" style={{ width: '100%', borderRadius: '12px', overflow: 'hidden' }}></div>
+          </div>
+        )}
+      </div>
+
+      {/* Formulario de Entrada Manual */}
       <div style={{
         backgroundColor: '#0f172a',
         border: '1px solid #1e293b',
@@ -184,14 +271,13 @@ export const CheckinView: React.FC = () => {
         <form onSubmit={handleValidateAndCheckin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
             <label style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
-              Código de Verificación QR / Token
+              O ingresa el Código Manual del Comprobante
             </label>
             <input
               type="text"
               placeholder="Ej. YALLA-ABC123XYZ"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
-              required
               style={{
                 width: '100%',
                 backgroundColor: '#020617',
@@ -226,7 +312,7 @@ export const CheckinView: React.FC = () => {
             }}
           >
             <ShieldCheck style={{ width: '18px', height: '18px' }} />
-            {loading ? 'Validando consumo...' : 'Validar Check-in y Ganar Puntos'}
+            {loading ? 'Validando consumo...' : 'Validar Check-in Manual'}
           </button>
         </form>
 
